@@ -1,0 +1,32 @@
+/***
+* http://localhost:8000/test?field=nameOfField&value=valueTosearch
+* Replace nameOfField with field's name and valueTosearch with the desired value
+*/
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class TestingController extends Controller {
+
+    public function test(Request $request) {
+        $searchField = request()->field;
+        $searchValue = strtolower(request()->value);
+        return $this->filterComments($searchField, $searchValue);
+    }
+
+    private function filterComments($searchField, $searchValue) {
+        $results = [];
+        $comments = $this->getAllComments();
+        foreach ($comments as $comment) {
+            if (isset($comment[$searchField]) && strpos($comment[$searchField],$searchValue) !== FALSE) {
+                $results[] = $comment;
+            }
+        }
+        return $results;
+
+    }
+
+}
+
