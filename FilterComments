@@ -6,9 +6,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Facades\LogManager;
 use Illuminate\Http\Request;
 
 class TestingController extends Controller {
+
+    public const BASE_URI = 'https://jsonplaceholder.typicode.com/';
+    public const ENDPOINT_ALL_POSTS = 'posts';
+    public const ENDPOINT_COMMENTS = 'comments';
 
     public function test(Request $request) {
         $searchField = request()->field;
@@ -20,12 +25,26 @@ class TestingController extends Controller {
         $results = [];
         $comments = $this->getAllComments();
         foreach ($comments as $comment) {
-            if (isset($comment[$searchField]) && strpos($comment[$searchField],$searchValue) !== FALSE) {
+            if (isset($comment[$searchField]) && strpos($comment[$searchField], $searchValue) !== FALSE) {
                 $results[] = $comment;
             }
         }
         return $results;
 
+    }
+
+    private function getAllComments() {
+        $url = self::getUrl(self::ENDPOINT_COMMENTS);
+        try {
+            return json_decode(file_get_contents($url), true);
+        } catch (\Exception $e) {
+            LogManager::e($e);
+        }
+        return [];
+    }
+
+    private final function getUrl($endPoint = '') {
+        return self::BASE_URI . $endPoint;
     }
 
 }
