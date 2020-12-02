@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Facades\LogManager;
+use Illuminate\Http\Request;
+
+class TestingController extends Controller {
+    public const BASE_URI = 'https://jsonplaceholder.typicode.com/';
+    public const ENDPOINT_ALL_POSTS = 'posts';
+    public const ENDPOINT_COMMENTS = 'comments';
+
+
+    public function sortPostByComment(Request $request) {
+        $postIdsWithCommentCount = $this->getPostIdsOrderByNumberOfComments();
+        $postsData = $this->getPostsData();
+        return $this->formatPostData($postIdsWithCommentCount, $postsData);
+    }
+
+    private function formatPostData(array $postIdsWithCommentCount, array $postsData) {
+        $result = [];
+        foreach ($postIdsWithCommentCount as $postId => $commentCount) {
+            $data = $postsData[$postId];
+            $data["total_number_of_comments"] = $commentCount;
+            $result[] = $data;
+        }
+        return $result;
+    }
+
+    private function getPostIdsOrderByNumberOfComments() {
+        $comments = $this->getAllComments();
+        $postIdsWithCommentsCount = array_count_values(array_column($comments, 'postId'));
+        //sort by php given function (not stable because according to docs If any of these sort functions evaluates two members as equal then the order is undefined (the sorting is not stable))
+        //                arsort($postIdsWithCommentsCount);
+        $postIdsWithCommentsCount = $this->stableArSort($postIdsWithCommentsCount);
+        return $postIdsWithCommentsCount;
+    }
+
+    private function stableArSort(array $postIdsWithCommentsCount) {
+        $temp = [];
+        $i = 0;
+        foreach ($postIdsWithCommentsCount as $key => $value) {
+            $temp[] = array($i, $key, $value);
+            $i++;
+        }
+        uasort($temp, function ($a, $b) {
+            return $a[2] == $b[2] ? ($a[0] - $b[0]) : ($a[2] < $b[2] ? 1 : -1);
+        });
+        $result = [];
+        foreach ($temp as $val) {
+            $result[$val[1]] = $val[2];
+        }
+        return $result;
+    }
+
+
+    private function getAllComments() {
+        $url = self::getUrl(self::ENDPOINT_COMMENTS);
+        try {
+            return json_decode(file_get_contents($url), true);
+        } catch (\Exception $e) {
+            LogManager::e($e);
+        }
+        return [];
+    }
+
+    private function getPostsData() {
+        $result = [];
+        $url = self::getUrl(self::ENDPOINT_ALL_POSTS);
+        try {
+            $posts = json_decode(file_get_contents($url), true);
+            foreach ($posts as $post) {
+                $result[$post["id"]] = [
+                    "post_id" => $post["id"],
+                    "post_title" => $post["title"],
+                    "post_body" => $post["body"],
+                ];
+            }
+        } catch (\Exception $e) {
+            LogManager::e($e);
+        }
+        return $result;
+    }
+
+    private final function getUrl($endPoint = '') {
+        return self::BASE_URI . $endPoint;
+    }
+}
+
